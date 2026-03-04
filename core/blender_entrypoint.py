@@ -40,10 +40,10 @@ def main(argv: list):
         exit(1)
 
     field = cfg.field
-    
+
     configure_random_seed(field)
     core.base.create_blender_context()
-    
+
     try:
         beds = core.beds.Beds(field)
         beds.load_plants()
@@ -65,6 +65,13 @@ def main(argv: list):
 
     for output in cfg.outputs:
         output.export(output_dir, field)
+
+    if cfg.render is not None:
+        core.base.setup_camera_animation(cfg.render, beds.get_end_pos())
+        core.base.render_animation(cfg.render, labeled=False)
+        beds.apply_label_materials(cfg.render.label_colors)
+        ground.apply_label_materials(cfg.render.label_colors)
+        core.base.render_animation(cfg.render, labeled=True)
 
     print(f'Generated seed: {field.seed}')
 

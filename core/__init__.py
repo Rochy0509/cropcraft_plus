@@ -35,6 +35,10 @@ if not _find_spec('msgpack'):
     _install_pkg('msgpack')
     _reload_site = True
 
+if not _find_spec('PIL'):
+    _install_pkg('pillow')
+    _reload_site = True
+
 # refresh sys.path
 if _reload_site:
     import site

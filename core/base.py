@@ -14,8 +14,14 @@ import bpy
 import mathutils
 import os
 import math
+import random
+import glob as _glob
+
+import numpy as np
+from PIL import Image
 
 from . import geometry_nodes
+from . import config as cfg_module
 
 
 def create_blender_context():
@@ -107,3 +113,99 @@ def create_environment():
 
         sun_light.data.energy = 13.0
         sun_light.rotation_euler = ((sun_elevation - 90) * to_radians, 0, sun_rotation * to_radians)
+
+
+def setup_camera_animation(render: cfg_module.Render, bed_end: mathutils.Vector):
+    scene = bpy.context.scene
+    camera_cfg = render.camera
+
+    camera_data = bpy.data.cameras.new('RenderCamera')
+    camera_data.angle = math.radians(camera_cfg.fov_deg)
+    camera = bpy.data.objects.new('RenderCamera', camera_data)
+    camera.rotation_euler = (
+        math.radians(camera_cfg.roll_deg),
+        math.radians(camera_cfg.pitch_deg),
+        math.radians(camera_cfg.yaw_deg),
+    )
+    bpy.data.collections['env'].objects.link(camera)
+    scene.camera = camera
+
+    curve_data = bpy.data.curves.new('BedPath', type='CURVE')
+    curve_data.dimensions = '3D'
+    curve_data.use_path = True
+    spline = curve_data.splines.new('BEZIER')
+    spline.bezier_points.add(1)
+    center_y = bed_end.y / 2.0
+    for bp, coord in zip(spline.bezier_points, ((0.0, center_y, camera_cfg.height), (bed_end.x, center_y, camera_cfg.height))):
+        bp.co = coord
+        bp.handle_left_type = 'AUTO'
+        bp.handle_right_type = 'AUTO'
+    curve_obj = bpy.data.objects.new('BedPath', curve_data)
+    bpy.data.collections['env'].objects.link(curve_obj)
+
+    constraint = camera.constraints.new(type='FOLLOW_PATH')
+    constraint.target = curve_obj
+    constraint.forward_axis = 'TRACK_NEGATIVE_Y'
+    constraint.up_axis = 'UP_Z'
+
+    curve_data.use_path_follow = True
+    curve_data.path_duration = render.frames
+    curve_data.eval_time = 0
+    curve_data.keyframe_insert(data_path='eval_time', frame=1)
+    curve_data.eval_time = render.frames
+    curve_data.keyframe_insert(data_path='eval_time', frame=render.frames)
+
+    scene.frame_start = 1
+    if camera_cfg.y_jitter != 0.0:
+        rand = random.Random(random.getrandbits(32))
+        for frame in range(render.frames):
+            jitter = rand.uniform(-camera_cfg.y_jitter, camera_cfg.y_jitter)
+            camera.location.y = jitter
+            camera.keyframe_insert(data_path='location', frame=frame, index=1)
+    scene.frame_end = render.frames
+
+
+def _quantize_masks(masks_dir: str, label_colors: cfg_module.LabelColors):
+    class_colors = np.array([
+        label_colors.background,
+        label_colors.crop,
+        label_colors.weed,
+    ], dtype=np.int32)
+    for path in _glob.glob(os.path.join(masks_dir, '*.png')):
+        img = Image.open(path).convert('RGB')
+        arr = np.array(img, dtype=np.int32)
+        dists = np.sum((arr[:, :, None, :] - class_colors[None, None, :, :]) ** 2, axis=-1)
+        nearest = class_colors[np.argmin(dists, axis=-1)]
+        Image.fromarray(nearest.astype(np.uint8)).save(path)
+
+
+def render_animation(render: cfg_module.Render, labeled: bool):
+    scene = bpy.context.scene
+    sub_dir = 'masks' if labeled else 'images'
+    scene.render.filepath = f'//{render.directory}/{sub_dir}/frame_'
+    scene.render.image_settings.file_format = 'PNG' if labeled else 'JPEG'
+
+    if labeled:
+        scene.render.engine = 'BLENDER_EEVEE'
+        scene.render.filter_size = 0.0
+        scene.render.image_settings.color_mode = 'RGB'
+        world = scene.world
+        if world and world.use_nodes:
+            bg_node = world.node_tree.nodes.get('Background')
+            if bg_node:
+                bg_node.inputs['Color'].default_value = (0.0, 0.0, 0.0, 1.0)
+        scene.view_settings.view_transform = 'Standard'
+    else:
+        scene.render.engine = 'CYCLES'
+        scene.cycles.device = render.cycles_device
+        scene.cycles.samples = render.samples
+        scene.render.image_settings.quality = 100
+
+    scene.render.resolution_x = render.resolution_x
+    scene.render.resolution_y = render.resolution_y
+
+    bpy.ops.render.render(animation=True)
+
+    if labeled:
+        masks_dir = os.path.join(bpy.path.abspath("//"), render.directory, 'masks')
+        _quantize_masks(masks_dir, render.label_colors)

@@ -122,6 +122,36 @@ class Field:
 
 
 @dataclass
+class LabelColors:
+    crop: typing.List[int] = field(default_factory=lambda: [0, 255, 0])
+    weed: typing.List[int] = field(default_factory=lambda: [255, 0, 0])
+    background: typing.List[int] = field(default_factory=lambda: [0, 0, 0])
+
+
+@dataclass
+class Camera:
+    height: float = 1.0
+    fov_deg: float = 60.0
+    roll_deg: float = 0.0
+    pitch_deg: float = 0.0
+    yaw_deg: float = 0.0
+    y_jitter: float = 0.0
+
+
+@dataclass
+class Render:
+    directory: str = 'render'
+    frames: int = 1
+    samples: int = 32
+    cycles_device: str = 'GPU'
+    resolution_x: int = 1920
+    resolution_y: int = 1080
+    camera: Camera = field(default_factory=Camera)
+    label_colors: LabelColors = field(default_factory=LabelColors)
+
+
+@dataclass
 class Config:
     outputs: list = None
     field: Field = None
+    render: Render = None

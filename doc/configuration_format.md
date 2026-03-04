@@ -56,6 +56,21 @@ field:
   stones:
     density: 60.
     noise_scale: 0.24
+
+render:
+  directory: render
+  frames: 10
+  samples: 32
+  cycles_device: GPU
+  resolution_x: 1920
+  resolution_y: 1080
+  camera:
+    height: 1.6
+    fov_deg: 60.0
+    roll_deg: 0.0
+    pitch_deg: 0.0
+    yaw_deg: 0.0
+    y_jitter: 0.1
 ```
 
 Here is the image corresponding to this configuration:
@@ -68,9 +83,11 @@ Here is the image corresponding to this configuration:
 
 * `field`: a block that contains the parameters of the generated field
 * `output`: a block where each element correspond to a named output configuration
-* `output_enabled` (optional): a list of output configuration name that are used when the program 
+* `output_enabled` (optional): a list of output configuration name that are used when the program
   is executed.
   If it is not specified, all defined output are applied.
+* `render` (optional): a block that enables image capture (RGB images + semantic masks).
+  See the [render block](#the-render-block) section below.
 
 ### The `field` block
 
@@ -309,6 +326,79 @@ out4:
   The following extension are available:
   - `.json` for the JSON format
   - `.mpk` for the [MessagePack](https://msgpack.org/) format
-  - `.mpk.gz` for a compressed MessagePack using gzip 
+  - `.mpk.gz` for a compressed MessagePack using gzip
   If the extension is unknown, the JSON format is selected by default.
 
+
+### The `render` block
+
+When this optional block is present, CropCraft renders a dataset of paired RGB images and semantic
+segmentation masks in a single run.
+
+```yaml
+render:
+  directory: render
+  frames: 10
+  samples: 32
+  cycles_device: GPU
+  resolution_x: 1920
+  resolution_y: 1080
+  camera:
+    height: 1.6
+    fov_deg: 60.0
+    roll_deg: 0.0
+    pitch_deg: 0.0
+    yaw_deg: 0.0
+    y_jitter: 0.1
+  label_colors:
+    crop:       [0, 255, 0]
+    weed:       [255, 0, 0]
+    background: [0, 0, 0]
+```
+
+* `directory` (default: `render`): subdirectory (relative to `--output-dir`) where the images are
+  saved.
+  RGB images are written to `<directory>/images/` and masks to `<directory>/masks/`.
+* `frames` (default: 1): number of frames to render.
+  The camera is placed at `frames` evenly-spaced positions along a straight line following the
+  center of the bed: position 1 is at the start of the bed and position `frames` is at the end.
+  Increasing `frames` produces more images with a smaller displacement between consecutive views;
+  decreasing it produces fewer images with a larger displacement.
+* `samples` (default: 32): number of path-tracing samples per pixel used for the RGB pass
+  (Cycles engine).
+* `cycles_device` (default: `GPU`, options: `GPU`, `CPU`): compute device used by the Cycles
+  renderer for the RGB pass. Set to `CPU` if no compatible GPU is available.
+  > **Note:** when using `GPU`, the desired GPU must be enabled in Blender beforehand.
+  > Open Blender and go to **Edit > Preferences > System > Cycles Render Devices**, then select
+  > your GPU. This setting is saved in Blender's user preferences and persists across runs.
+  > (Verified on Blender 5.0.1.)
+* `resolution_x` (default: 1920, in pixels): horizontal resolution of the rendered images.
+* `resolution_y` (default: 1080, in pixels): vertical resolution of the rendered images.
+
+#### The `camera` sub-block
+
+* `height` (default: 1.0, in meters): height of the camera above the ground plane.
+* `fov_deg` (default: 60.0, in degrees): horizontal field of view of the camera.
+* `roll_deg` (default: 0.0, in degrees): rotation of the camera around the X axis (XYZ Euler order).
+* `pitch_deg` (default: 0.0, in degrees): rotation of the camera around the Y axis (XYZ Euler order).
+* `yaw_deg` (default: 0.0, in degrees): rotation of the camera around the Z axis (XYZ Euler order).
+* `y_jitter` (default: 0.0, in meters): maximum random lateral displacement of the camera per
+  frame, drawn from a uniform distribution `[-y_jitter, +y_jitter]`.
+
+#### The `label_colors` sub-block
+
+Controls the RGB color assigned to each semantic class in the mask images.
+Each value is a list of three integers in the range `[0, 255]`.
+
+```yaml
+label_colors:
+  crop:       [0, 255, 0]   # default: green
+  weed:       [255, 0, 0]   # default: red
+  background: [0, 0, 0]     # default: black (ground and stones)
+```
+
+* `crop` (default: `[0, 255, 0]`): color for crop pixels.
+* `weed` (default: `[255, 0, 0]`): color for weed pixels.
+* `background` (default: `[0, 0, 0]`): color for ground and stone pixels.
+
+The entire sub-block is optional; omitting it keeps the defaults shown above.

@@ -15,7 +15,7 @@ import bpy
 import random
 
 from . import config
-from .beds import Beds
+from .beds import Beds, _apply_emission_material
 from .model_import import obj_import
 from .plant_manager import PlantManager
 
@@ -206,3 +206,20 @@ class Ground:
             tex.image.colorspace_settings.name = "Non-Color"
 
         return tex
+
+    def apply_label_materials(self, label_colors: config.LabelColors):
+        weed_color = tuple(c / 255.0 for c in label_colors.weed) + (1.0,)
+        bg_color = tuple(c / 255.0 for c in label_colors.background) + (1.0,)
+        for weed in self.field.weeds:
+            _apply_emission_material(
+                list(bpy.data.collections[weed.name].objects),
+                weed_color,
+            )
+        if self.field.stones is not None:
+            _apply_emission_material(
+                list(bpy.data.collections['stones'].objects),
+                bg_color,
+            )
+        _apply_emission_material(
+            [bpy.data.objects['ground']], bg_color
+        )

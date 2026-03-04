@@ -242,6 +242,49 @@ def make_outputs(cfg: dict):
     return outputs
 
 
+def make_label_colors(data: dict):
+    lc = config.LabelColors()
+    lc.crop = data.get('crop', lc.crop)
+    lc.weed = data.get('weed', lc.weed)
+    lc.background = data.get('background', lc.background)
+    return lc
+
+
+def make_camera(data: dict):
+    camera = config.Camera()
+    camera.height = data.get('height', camera.height)
+    camera.fov_deg = data.get('fov_deg', camera.fov_deg)
+    camera.roll_deg = data.get('roll_deg', camera.roll_deg)
+    camera.pitch_deg = data.get('pitch_deg', camera.pitch_deg)
+    camera.yaw_deg = data.get('yaw_deg', camera.yaw_deg)
+    camera.y_jitter = data.get('y_jitter', camera.y_jitter)
+    return camera
+
+
+def make_render(cfg: dict):
+    render_data = cfg.get('render')
+    if render_data is None:
+        return None
+
+    render = config.Render()
+    render.directory = render_data.get('directory', render.directory)
+    render.frames = render_data.get('frames', render.frames)
+    render.samples = render_data.get('samples', render.samples)
+    render.cycles_device = render_data.get('cycles_device', render.cycles_device)
+    render.resolution_x = render_data.get('resolution_x', render.resolution_x)
+    render.resolution_y = render_data.get('resolution_y', render.resolution_y)
+
+    camera_data = render_data.get('camera')
+    if camera_data is not None:
+        render.camera = make_camera(camera_data)
+
+    lc_data = render_data.get('label_colors')
+    if lc_data is not None:
+        render.label_colors = make_label_colors(lc_data)
+
+    return render
+
+
 def load_yaml_config(filename: str):
     with open(filename, 'r') as file:
         cfg_data = yaml.safe_load(file.read())
@@ -249,5 +292,6 @@ def load_yaml_config(filename: str):
     cfg = config.Config()
     cfg.field = make_field(cfg_data, os.path.dirname(filename))
     cfg.outputs = make_outputs(cfg_data)
+    cfg.render = make_render(cfg_data)
 
     return cfg

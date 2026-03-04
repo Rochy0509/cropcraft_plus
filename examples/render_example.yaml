@@ -1,0 +1,50 @@
+output:
+  blender:
+    type: blender_file
+    filename: render_example.blend
+
+render:
+  directory: render
+  frames: 10
+  samples: 32
+  cycles_device: GPU
+  resolution_x: 1920
+  resolution_y: 1080
+  camera:
+    height: 1.6
+    fov_deg: 60.0
+    roll_deg: 0.0
+    pitch_deg: 0.0
+    yaw_deg: 90.0
+    y_jitter: 0.0
+  label_colors:
+    crop:       [0, 255, 0]   # green
+    weed:       [255, 0, 0]   # red
+    background: [0, 0, 0]     # black
+
+field:
+  headland_width: 4.0
+
+  beds:
+    bed1:
+      plant_type: maize
+      bed_width: 1.6
+      plant_height: 0.3
+      plant_distance: 0.3
+      plants_count: 200
+      row_distance: 0.75
+      rows_count: 1
+      beds_count: 1
+
+  weeds:
+    weed1:
+      plant_type: portulaca
+      max_height: 0.08
+      density: 4.0
+      distance_min: 0.12
+
+  noise:
+    position: 0.009
+    tilt: 0.05
+    missing: 0.1
+    scale: 0.08

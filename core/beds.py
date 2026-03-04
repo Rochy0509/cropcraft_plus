@@ -22,7 +22,23 @@ from . import config
 from .model_import import obj_import
 
 
+def _apply_emission_material(objects, color: tuple):
+    for obj in objects:
+        obj.data.materials.clear()
+        mat = bpy.data.materials.new(name='label')
+        mat.use_nodes = True
+        nodes = mat.node_tree.nodes
+        nodes.clear()
+        emission = nodes.new(type='ShaderNodeEmission')
+        emission.inputs['Color'].default_value = color
+        emission.inputs['Strength'].default_value = 1.0
+        out = nodes.new(type='ShaderNodeOutputMaterial')
+        mat.node_tree.links.new(emission.outputs['Emission'], out.inputs['Surface'])
+        obj.data.materials.append(mat)
+
+
 class Beds:
+
     def __init__(self, field: config.Field):
         self.field = field
         self.bed_plant_groups = {}
@@ -87,6 +103,34 @@ class Beds:
 
     def get_center_pos(self):
         return mathutils.Vector((self.length / 2.0, self.width / 2.0, 0.0))
+
+    def get_start_pos(self):
+        return mathutils.Vector((0.0, 0.0, 0.0))
+
+    def get_end_pos(self):
+        return mathutils.Vector((self.length, self.width, 0.0))
+
+    def create_bed_path(self):
+        center_y = self.width / 2.0
+        curve_data = bpy.data.curves.new('BedPath', type='CURVE')
+        curve_data.dimensions = '3D'
+        spline = curve_data.splines.new('BEZIER')
+        spline.bezier_points.add(1)
+        for bp, coord in zip(
+            spline.bezier_points,
+            ((0.0, center_y, 0.0), (self.length, center_y, 0.0)),
+        ):
+            bp.co = coord
+            bp.handle_left_type = 'AUTO'
+            bp.handle_right_type = 'AUTO'
+        curve_obj = bpy.data.objects.new('BedPath', curve_data)
+        bpy.data.collections['env'].objects.link(curve_obj)
+
+    def apply_label_materials(self, label_colors: config.LabelColors):
+        color = tuple(c / 255.0 for c in label_colors.crop) + (1.0,)
+        plants_collection = bpy.data.collections['plants']
+        for collection in plants_collection.children.values():
+            _apply_emission_material(list(collection.objects), color)
 
     def _create_bed(self, bed: config.Bed):
         noise = self.field.noise
