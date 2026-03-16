@@ -5,6 +5,8 @@ output:
 
 render:
   directory: render
+  env_path: ../assets/textures/dry_hay_field_1k.hdr
+  env_rotation_deg: 0.0
   frames: 10
   samples: 32
   cycles_device: GPU
@@ -15,7 +17,7 @@ render:
     fov_deg: 60.0
     roll_deg: 0.0
     pitch_deg: 0.0
-    yaw_deg: 90.0
+    yaw_deg: 0.0
     y_jitter: 0.0
   label_colors:
     crop:       [0, 255, 0]   # green

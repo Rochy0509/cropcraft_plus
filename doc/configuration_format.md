@@ -343,7 +343,7 @@ render:
   cycles_device: GPU
   resolution_x: 1920
   resolution_y: 1080
-  env_path: assets/textures/dry_hay_field_1k.hdr
+  env_path: ../assets/textures/dry_hay_field_1k.hdr
   env_rotation_deg: 0.0
   camera:
     height: 1.6
