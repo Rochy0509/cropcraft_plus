@@ -39,6 +39,10 @@ if not _find_spec('PIL'):
     _install_pkg('pillow')
     _reload_site = True
 
+if not _find_spec('numpy'):
+    _install_pkg('numpy')
+    _reload_site = True
+
 # refresh sys.path
 if _reload_site:
     import site

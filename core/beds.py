@@ -11,7 +11,6 @@
 # limitations under the License.
 
 import bpy
-import itertools
 import os
 import mathutils
 import random

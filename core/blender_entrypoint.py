@@ -42,7 +42,9 @@ def main(argv: list):
     field = cfg.field
 
     configure_random_seed(field)
-    core.base.create_blender_context()
+    env_path = cfg.render.env_path if cfg.render is not None else None
+    env_rotation_deg = cfg.render.env_rotation_deg if cfg.render is not None else 0.0
+    core.base.create_blender_context(env_path, env_rotation_deg)
 
     try:
         beds = core.beds.Beds(field)

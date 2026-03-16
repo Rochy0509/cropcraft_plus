@@ -343,6 +343,8 @@ render:
   cycles_device: GPU
   resolution_x: 1920
   resolution_y: 1080
+  env_path: assets/textures/dry_hay_field_1k.hdr
+  env_rotation_deg: 0.0
   camera:
     height: 1.6
     fov_deg: 60.0
@@ -374,6 +376,12 @@ render:
   > (Verified on Blender 5.0.1.)
 * `resolution_x` (default: 1920, in pixels): horizontal resolution of the rendered images.
 * `resolution_y` (default: 1080, in pixels): vertical resolution of the rendered images.
+* `env_path` (optional): path to an HDR/EXR image used as the world environment lighting.
+  Relative paths are resolved from the directory containing the YAML config file.
+  When omitted, the built-in `assets/textures/dry_hay_field_1k.hdr` is used.
+* `env_rotation_deg` (default: 0.0, in degrees): rotates the environment map around the
+  vertical (Z) axis. Use this to control the direction of the sun / shadows cast by the environment
+  image without modifying the image file.
 
 #### The `camera` sub-block
 

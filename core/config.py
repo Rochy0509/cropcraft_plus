@@ -146,6 +146,8 @@ class Render:
     cycles_device: str = 'GPU'
     resolution_x: int = 1920
     resolution_y: int = 1080
+    env_path: str = None
+    env_rotation_deg: float = 0.0
     camera: Camera = field(default_factory=Camera)
     label_colors: LabelColors = field(default_factory=LabelColors)
 

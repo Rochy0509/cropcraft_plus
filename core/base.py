@@ -24,11 +24,11 @@ from . import geometry_nodes
 from . import config as cfg_module
 
 
-def create_blender_context():
+def create_blender_context(env_path=None, env_rotation_deg=0.0):
     remove_all()
     create_collections()
     geometry_nodes.create_all_node_group()
-    create_environment()
+    create_environment(env_path, env_rotation_deg)
 
     bpy.context.scene.render.engine = "CYCLES"
     bpy.context.scene.cycles.device = "GPU"
@@ -84,35 +84,36 @@ def create_camera(look_at: mathutils.Vector):
     region.view_rotation = look_quaternion
 
 
-def create_environment():
+_DEFAULT_ENV_PATH = "assets/textures/dry_hay_field_1k.hdr"
+
+
+def create_environment(env_path=None, env_rotation_deg=0.0):
     world = bpy.context.scene.world
 
     world.use_nodes = True
-    bg = world.node_tree.nodes.new("ShaderNodeTexEnvironment")
+    nodes = world.node_tree.nodes
+    links = world.node_tree.links
 
-    hdr_image_path = os.path.join(bpy.path.abspath("//"), "assets/textures/dry_hay_field_1k.hdr")
-    hdr_image = bpy.data.images.load(hdr_image_path)
+    tex_coord = nodes.new("ShaderNodeTexCoord")
+    mapping = nodes.new("ShaderNodeMapping")
+    mapping.inputs["Rotation"].default_value[2] = math.radians(env_rotation_deg)
+    env_tex = nodes.new("ShaderNodeTexEnvironment")
 
-    bg.image = hdr_image
-    output = world.node_tree.nodes.get("World Output")
-    world.node_tree.links.new(bg.outputs[0], output.inputs[0])
+    if env_path is None:
+        env_image_path = os.path.join(bpy.path.abspath("//"), _DEFAULT_ENV_PATH)
+    else:
+        env_image_path = env_path
+    env_tex.image = bpy.data.images.load(env_image_path)
 
-    to_radians = math.pi / 180.0
+    output = nodes.get("World Output")
+    bg = nodes.get("Background")
+    if bg is None:
+        bg = nodes.new("ShaderNodeBackground")
 
-    # Add sun light to the "env" collection
-    env_collection = bpy.data.collections.get("env")
-    if env_collection:
-        sun_elevation = 30  # degrees
-        sun_rotation = 47  # degrees
-
-        sun_light_data = bpy.data.lights.new(name="sun", type="SUN")
-        sun_light_data.color = (1.0, 0.954, 0.755)
-        sun_light = bpy.data.objects.new(name="sun", object_data=sun_light_data)
-        sun_light.data = sun_light_data
-        env_collection.objects.link(sun_light)
-
-        sun_light.data.energy = 13.0
-        sun_light.rotation_euler = ((sun_elevation - 90) * to_radians, 0, sun_rotation * to_radians)
+    links.new(tex_coord.outputs["Generated"], mapping.inputs["Vector"])
+    links.new(mapping.outputs["Vector"], env_tex.inputs["Vector"])
+    links.new(env_tex.outputs["Color"], bg.inputs["Color"])
+    links.new(bg.outputs["Background"], output.inputs["Surface"])
 
 
 def setup_camera_animation(render: cfg_module.Render, bed_end: mathutils.Vector):

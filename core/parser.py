@@ -261,7 +261,7 @@ def make_camera(data: dict):
     return camera
 
 
-def make_render(cfg: dict):
+def make_render(cfg: dict, cfg_dir: str = ''):
     render_data = cfg.get('render')
     if render_data is None:
         return None
@@ -273,6 +273,12 @@ def make_render(cfg: dict):
     render.cycles_device = render_data.get('cycles_device', render.cycles_device)
     render.resolution_x = render_data.get('resolution_x', render.resolution_x)
     render.resolution_y = render_data.get('resolution_y', render.resolution_y)
+
+    env_path = render_data.get('env_path')
+    if env_path is not None:
+        render.env_path = env_path if os.path.isabs(env_path) else os.path.join(cfg_dir, env_path)
+
+    render.env_rotation_deg = render_data.get('env_rotation_deg', render.env_rotation_deg)
 
     camera_data = render_data.get('camera')
     if camera_data is not None:
@@ -292,6 +298,6 @@ def load_yaml_config(filename: str):
     cfg = config.Config()
     cfg.field = make_field(cfg_data, os.path.dirname(filename))
     cfg.outputs = make_outputs(cfg_data)
-    cfg.render = make_render(cfg_data)
+    cfg.render = make_render(cfg_data, os.path.dirname(filename))
 
     return cfg
