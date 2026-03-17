@@ -84,7 +84,7 @@ def create_camera(look_at: mathutils.Vector):
     region.view_rotation = look_quaternion
 
 
-_DEFAULT_ENV_PATH = "assets/textures/dry_hay_field_1k.hdr"
+_DEFAULT_ENV_PATH = "assets/environments/alps_field_1k.hdr"
 
 
 def create_environment(env_path=None, env_rotation_deg=0.0):
