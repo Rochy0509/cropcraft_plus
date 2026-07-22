@@ -28,6 +28,7 @@ def stones_scattering_node_group():
     collection_info.inputs[2].default_value = True
 
     # node Random Value
+    # Blender 4.2: FunctionNodeRandomValue exposes all sockets simultaneously; FLOAT_VECTOR uses inputs[0]/[1]/[7], output[0]
     random_value = scattering.nodes.new("FunctionNodeRandomValue")
     random_value.name = "Random Value"
     random_value.data_type = 'FLOAT_VECTOR'
@@ -35,17 +36,7 @@ def stones_scattering_node_group():
     random_value.inputs[0].default_value = (-0.10000000149011612, -0.10000000149011612, 0.0)
     # Max
     random_value.inputs[1].default_value = (0.10000000149011612, 0.10000000149011612, 6.283199787139893)
-    # Min_001
-    random_value.inputs[2].default_value = 0.0
-    # Max_001
-    random_value.inputs[3].default_value = 1.0
-    # Min_002
-    random_value.inputs[4].default_value = 0
-    # Max_002
-    random_value.inputs[5].default_value = 100
-    # Probability
-    random_value.inputs[6].default_value = 0.5
-    # ID
+    # Seed
     random_value.inputs[7].default_value = 0
 
     # node Group Input.001
@@ -159,24 +150,15 @@ def stones_scattering_node_group():
         noise_texture.inputs[7].default_value = 1.0
 
     # node Random Value.001
+    # Blender 4.2: FunctionNodeRandomValue exposes all sockets simultaneously; FLOAT uses inputs[2]/[3]/[7], output[1]
     random_value_001 = scattering.nodes.new("FunctionNodeRandomValue")
     random_value_001.name = "Random Value.001"
     random_value_001.data_type = 'FLOAT'
     # Min
-    random_value_001.inputs[0].default_value = (0.0, 0.0, 0.0)
-    # Max
-    random_value_001.inputs[1].default_value = (0.0, 0.0, 6.283199787139893)
-    # Min_001
     random_value_001.inputs[2].default_value = 0.0
-    # Max_001
+    # Max
     random_value_001.inputs[3].default_value = 1.0
-    # Min_002
-    random_value_001.inputs[4].default_value = 0
-    # Max_002
-    random_value_001.inputs[5].default_value = 100
-    # Probability
-    random_value_001.inputs[6].default_value = 0.5
-    # ID
+    # Seed
     random_value_001.inputs[7].default_value = 0
 
     # node Float Curve
@@ -305,9 +287,9 @@ def stones_scattering_node_group():
     # group_input_001.Collection -> collection_info.Collection
     scattering.links.new(group_input_001.outputs[2], collection_info.inputs[0])
     # group_input_001.Seed -> random_value_001.Seed
-    scattering.links.new(group_input_001.outputs[3], random_value_001.inputs[8])
+    scattering.links.new(group_input_001.outputs[3], random_value_001.inputs[7])  # Blender 4.2: Seed input is at index 7
     # group_input_001.Seed -> random_value.Seed
-    scattering.links.new(group_input_001.outputs[3], random_value.inputs[8])
+    scattering.links.new(group_input_001.outputs[3], random_value.inputs[7])  # Blender 4.2: Seed input is at index 7
     # group_input_002.Seed -> noise_texture.W
     scattering.links.new(group_input_002.outputs[3], noise_texture.inputs[1])
     # group_input.Density -> distribute_points_on_faces.Density Max
@@ -319,7 +301,7 @@ def stones_scattering_node_group():
     # math.Value -> instance_on_points.Scale
     scattering.links.new(math.outputs[0], instance_on_points.inputs[6])
     # random_value_001.Value -> float_curve.Value
-    scattering.links.new(random_value_001.outputs[1], float_curve.inputs[1])
+    scattering.links.new(random_value_001.outputs[1], float_curve.inputs[1])  # Blender 4.2: FLOAT Value output is at outputs[1]
     # float_curve.Value -> math.Value
     scattering.links.new(float_curve.outputs[0], math.inputs[0])
     return scattering

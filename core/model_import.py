@@ -11,66 +11,35 @@
 # limitations under the License.
 
 import bpy
-from mathutils import Matrix
-from contextlib import contextmanager
-import os
 import sys
 from pathlib import Path
 
 
-@contextmanager
-def disable_outputs():
-    fd_out = sys.stdout.fileno()
-    fd_err = sys.stderr.fileno()
-
-    def redirect_all(out, err):
-        sys.stdout.close()
-        sys.stderr.close()
-        os.dup2(out.fileno(), fd_out)
-        os.dup2(err.fileno(), fd_err)
-        sys.stdout = os.fdopen(fd_out, "w")
-        sys.stderr = os.fdopen(fd_err, "w")
-
-    old_out = os.fdopen(os.dup(fd_out), "w")
-    old_err = os.fdopen(os.dup(fd_err), "w")
-
-    with open(os.devnull, "w") as file:
-        redirect_all(file, file)
-    try:
-        yield
-    finally:
-        redirect_all(old_out, old_err)
-
-    old_out.close()
-    old_err.close()
-
-
 def obj_import(filepath: str):
+    print(f"      -> Inside obj_import for: {filepath}")
     objects_before = set(bpy.context.scene.objects)
     path = Path(filepath)
     ext = path.suffix.lower()
 
-    with disable_outputs():
-        if ext in (".usd", ".usda", ".usdc", ".usdz"):
-            bpy.ops.wm.usd_import(
-                filepath=str(path),
-                import_meshes=True,
-                import_materials=True,
-                import_usd_preview=True,
-                read_mesh_uvs=True,
-                read_mesh_colors=True,
-                import_subdiv=True,
-            )
-        elif ext == ".obj":
-            bpy.ops.wm.obj_import(
-                filepath=str(path),
-                up_axis="Z",
-                forward_axis="Y",
-                use_split_objects=False,
-            )
-        else:
-            raise ValueError(f"Unsupported file extension: {ext}")
+    if ext in (".usd", ".usda", ".usdc", ".usdz"):
+        print("      -> Calling usd_import...")
+        bpy.ops.wm.usd_import(
+            'EXEC_DEFAULT',
+            filepath=str(path),
+            import_meshes=True,
+            import_materials=True,
+            import_usd_preview=True,
+            read_mesh_uvs=True,
+            read_mesh_colors=True,
+            import_subdiv=True,  # Blender 4.2: usd_import uses 'import_subdiv' (not 'import_subdivision')
+        )
+    elif ext == ".obj":
+        print("      -> Calling wm.obj_import...")
+        bpy.ops.wm.obj_import('EXEC_DEFAULT', filepath=str(path))  # Blender 4.2: obj_import runs cleanly in --background, no master-collection dance needed
+    else:
+        raise ValueError(f"Unsupported file extension: {ext}")
 
+    print("      -> Import operator finished. Identifying meshes...")
     imported_objects = set(bpy.context.scene.objects) - objects_before
 
     # first identify meshes, but do not delete parents yet
@@ -81,17 +50,16 @@ def obj_import(filepath: str):
             meshes.append(obj)
 
     if not meshes:
-        print(
-            f"Warning: imported file '{filepath}' did not contain mesh objects.",
-            file=sys.stderr,
-        )
+        print(f"Warning: imported file '{filepath}' did not contain mesh objects.", file=sys.stderr)
         return
 
+    print("      -> Clearing parents and applying transforms...")
     # clear parents and apply transforms
     with bpy.context.temp_override(selected_objects=meshes, selected_editable_objects=meshes):
-        bpy.ops.object.parent_clear(type="CLEAR_KEEP_TRANSFORM")
-        bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+        bpy.ops.object.parent_clear('EXEC_DEFAULT', type="CLEAR_KEEP_TRANSFORM")
+        bpy.ops.object.transform_apply('EXEC_DEFAULT', location=True, rotation=True, scale=True)
 
+    print("      -> Deleting non-mesh parents...")
     # delete imported non-mesh parents now that transforms are baked
     for obj in list(imported_objects):
         if obj.type != "MESH":
@@ -100,16 +68,12 @@ def obj_import(filepath: str):
             except ReferenceError:
                 pass
 
-    # join meshes into one object
-
+    print("      -> Joining meshes...")
     # keep only meshes that actually have geometry
     meshes = [m for m in meshes if m.data and len(m.data.vertices) > 0]
 
     if not meshes:
-        print(
-            f"Warning: imported file '{filepath}' did not contain usable mesh data.",
-            file=sys.stderr,
-        )
+        print(f"Warning: imported file '{filepath}' did not contain usable mesh data.", file=sys.stderr)
         return
 
     active = meshes[0]
@@ -129,9 +93,10 @@ def obj_import(filepath: str):
             selected_objects=meshes,
             selected_editable_objects=meshes,
         ):
-            bpy.ops.object.join()
+            bpy.ops.object.join('EXEC_DEFAULT')
         bpy.context.view_layer.objects.active.name = merged_name
-
+    
+    print(f"      -> Successfully finished importing {filepath}!")
 
 def make_transparent(obj: bpy.types.Object):
     """

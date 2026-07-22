@@ -70,16 +70,28 @@ class Ground:
                 obj_import(model.filepath)
 
     def load_stones(self):
+        print("    -> load_stones: getting view layer...")
         view_layer = bpy.context.view_layer
         scene_layer_coll = view_layer.layer_collection
+        
+        print("    -> load_stones: finding resources/stones layer collection...")
         stones_layer_coll = scene_layer_coll.children["resources"].children["stones"]
 
         stones_path = os.path.join(self.assets_path, "stones")
-        models = filter(lambda x: x.endswith(".obj"), os.listdir(stones_path))
+        print(f"    -> load_stones: scanning path: {stones_path}")
+        
+        if not os.path.exists(stones_path):
+            print(f"    -> ERROR: Stones path does not exist: {stones_path}")
+            return
+
+        models = [x for x in os.listdir(stones_path) if x.endswith(".obj")]
+        print(f"    -> load_stones: found {len(models)} stone models.")
 
         for model in models:
+            print(f"    -> load_stones: importing {model}...")
             view_layer.active_layer_collection = stones_layer_coll
             obj_import(os.path.join(stones_path, model))
+        print("    -> load_stones: finished loading all stones.")
 
     def create_plane(self):
         object = create_plane_object(
@@ -122,7 +134,7 @@ class Ground:
         else:  # weed.scattering_mode == 'image':
             node.node_group = bpy.data.node_groups["scattering_from_image"]
 
-        node["Socket_3"] = weed_collection
+        node["Socket_3"] = weed_collection  # Blender 4.2: ID-property access for geometry node modifier inputs
         node["Socket_4"] = self.rand.randint(-10000, 10000)
         node["Socket_5"] = weed.distance_min
         node["Socket_6"] = weed.density
@@ -154,7 +166,7 @@ class Ground:
 
         node = object.modifiers.new("stones", "NODES")
         node.node_group = bpy.data.node_groups["stones_scattering"]
-        node["Socket_2"] = stones_collection
+        node["Socket_2"] = stones_collection  # Blender 4.2: ID-property access for geometry node modifier inputs
         node["Socket_3"] = self.rand.randint(-10000, 10000)
         node["Socket_4"] = stones.distance_min
         node["Socket_5"] = stones.density

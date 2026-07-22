@@ -29,6 +29,8 @@ def configure_random_seed(field: core.config.Field):
 
 
 def main(argv: list):
+    
+    # Whatever comes next (maybe lighting, rendering, or exporting)
     args = argv[argv.index('--') + 1:]
     config_file = args[0]
     output_dir = args[1]
@@ -49,31 +51,61 @@ def main(argv: list):
     try:
         beds = core.beds.Beds(field)
         beds.load_plants()
+        print(">>> Starting to create beds...")
         beds.create_beds()
+        print(">>> Finished creating beds!")
+
+    # Whatever comes next (maybe lighting, rendering, or exporting)
     except RuntimeError as e:
         print(f"Error: {e}", file=sys.stderr)
         exit(2)
 
+    print(">>> Initializing Ground...")
+
+    print("  -> Calling Ground(field, beds)...")
     ground = core.ground.Ground(field, beds)
+    
+    print("  -> Calling load_weeds()...")
     ground.load_weeds(beds.plant_mgr)
+    
+    print("  -> Calling load_stones()...")
     ground.load_stones()
+    
+    print(">>> Creating Ground Plane...")
     ground.create_plane()
+    
+    print(">>> Creating Weeds...")
     ground.create_weeds()
+    
+    print(">>> Creating Stones...")
     ground.create_stones()
+    print(">>> Finished Ground Operations!")
 
     look_at = beds.get_center_pos()
     look_at.x = 5.
+    print(">>> Creating Camera...")
     core.base.create_camera(look_at)
 
+    print(">>> Starting Exports...")
     for output in cfg.outputs:
+        print(f">>> Exporting item: {output}")
         output.export(output_dir, field)
+    print(">>> Finished Exports!")
 
     if cfg.render is not None:
+        print(">>> Setting up Camera Animation...")
         core.base.setup_camera_animation(cfg.render, beds.get_end_pos())
+        
+        print(">>> Rendering Unlabeled Animation...")
         core.base.render_animation(cfg.render, labeled=False)
+        
+        print(">>> Applying Label Materials...")
         beds.apply_label_materials(cfg.render.label_colors)
         ground.apply_label_materials(cfg.render.label_colors)
+        
+        print(">>> Rendering Labeled Animation...")
         core.base.render_animation(cfg.render, labeled=True)
+        print(">>> Finished Rendering!")
 
     print(f'Generated seed: {field.seed}')
 

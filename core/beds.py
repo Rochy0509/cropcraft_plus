@@ -239,8 +239,9 @@ class Beds:
 
         collection_name = name
         plant_collection = bpy.data.collections[collection_name]
-        modifier["Socket_2"] = plant_collection
-
+        modifier["Socket_2"] = plant_collection  # Blender 4.2: ID-property access for geometry node modifier input
+        print(f">>> Assigned {plant_collection.name} to Geometry Nodes!")
+        
         # apply plant material to the bed object
         active_material = plant_collection.objects[0].active_material
         if active_material:
