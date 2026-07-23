@@ -23,6 +23,8 @@ from .model_import import obj_import
 
 def _apply_emission_material(objects, color: tuple):
     for obj in objects:
+        if obj.type != "MESH":  # Blender 4.2: skip empties and non-mesh objects that have no material slots
+            continue
         obj.data.materials.clear()
         mat = bpy.data.materials.new(name='label')
         mat.use_nodes = True
@@ -53,6 +55,7 @@ class Beds:
             "aligned": lambda: self.rand.choice([0.0, math.pi]),
             "zero": lambda: 0.0,
         }
+        self.snap_points = {}  # Blender 4.2: maps model filename -> list of empty objects serving as fruit snap points
 
     def load_plants(self):
         groups = {}
@@ -87,9 +90,20 @@ class Beds:
             plants_collection.children.link(collection)
             plant_layer_coll = plants_layer_coll.children[group_name]
 
-            for model in models:
+            # Blender 4.2: Collection Info with Reset Children=True reverses instance order.
+            # Sort so fruited models (which have snap points) are imported first.
+            # After Reset Children reversal, instance order matches original model list.
+            models_sorted = sorted(models, key=lambda m: 'fruited' not in m.filename)
+            for model in models_sorted:
                 view_layer.active_layer_collection = plant_layer_coll
-                obj_import(model.filepath)
+                ext = os.path.splitext(model.filename)[1].lower()
+                # Blender 4.2: USD files may contain snap-point empties; pass keep_empties=True to preserve them
+                if ext in (".usd", ".usda", ".usdc", ".usdz"):
+                    mesh_obj, empties = obj_import(model.filepath, keep_empties=True)
+                    if empties:
+                        self.snap_points[model.filename] = empties  # store snap points keyed by model filename
+                else:
+                    obj_import(model.filepath)
 
     def create_beds(self):
         self.field.state = config.FieldState(beds=[])
@@ -209,7 +223,7 @@ class Beds:
             self.field.state.beds.append(bed_state)
             self.field.state.leaf_area += bed_state.leaf_area
 
-        object = self._create_bed_object(vertices, bed.name, scales, rotations, indexes)
+        object = self._create_bed_object(vertices, bed.name, scales, rotations, indexes, nb_plants)
 
         cur_width = bed.beds_count * bed.bed_width
         self.width = max(self.width, self.cur_bed_offset + cur_width)
@@ -219,7 +233,7 @@ class Beds:
 
         return object
 
-    def _create_bed_object(self, vertices: list, name: str, scales, rotations, indexes):
+    def _create_bed_object(self, vertices: list, name: str, scales, rotations, indexes, nb_plants):
         mesh = bpy.data.meshes.new(name)
         mesh.from_pydata(vertices, edges=[], faces=[])
         mesh.update()
@@ -239,7 +253,7 @@ class Beds:
 
         collection_name = name
         plant_collection = bpy.data.collections[collection_name]
-        modifier["Socket_2"] = plant_collection  # Blender 4.2: ID-property access for geometry node modifier input
+        modifier["Socket_2"] = plant_collection  # Blender 4.2: ID-property access for geometry node modifier input (identifier matches node group interface socket "Collection" = Socket_2)
         print(f">>> Assigned {plant_collection.name} to Geometry Nodes!")
         
         # apply plant material to the bed object

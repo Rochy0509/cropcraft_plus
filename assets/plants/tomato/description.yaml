@@ -1,9 +1,0 @@
-models:
-  - filename: tomato_stem_only.usda
-    height: 0.8
-    width: 0.55
-    leaf_area: 0.35
-  - filename: tomato_fruited.usda
-    height: 0.8
-    width: 0.55
-    leaf_area: 0.35

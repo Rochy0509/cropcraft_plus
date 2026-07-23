@@ -130,6 +130,21 @@ def make_stones(field: dict):
     return stones
 
 
+def make_fruit(name: str, data: dict):
+    fruit = config.Fruit()
+    fruit.name = name
+    fruit.fruit_type = data.get('fruit_type')
+    if fruit.fruit_type is None:
+        raise ParserError(f"Missing element 'fruit_type' as children of '{name}'")
+
+    fruit.density = data.get('density', fruit.density)  # Blender 4.2: 0.0-1.0, fraction of snap points populated
+    if fruit.density < 0.0 or fruit.density > 1.0:
+        raise ParserError(f"The '{name}.density' value must be between 0. and 1.")
+
+    fruit.scale = data.get('scale', fruit.scale)
+    return fruit
+
+
 def make_field(cfg: dict, cfg_dir: str):
     field_data = cfg.get('field')
     if field_data is None:
@@ -153,6 +168,10 @@ def make_field(cfg: dict, cfg_dir: str):
         field.weeds = [make_weed(name, data, cfg_dir) for name, data in weeds_data.items()]
 
     field.stones = make_stones(field_data)
+
+    fruits_data = field_data.get('fruits')  # Blender 4.2: parse optional fruits section for post-scatter fruit placement
+    if fruits_data is not None:
+        field.fruits = [make_fruit(name, data) for name, data in fruits_data.items()]
 
     field.headland_width = field_data.get('headland_width', field.headland_width)
     field.scattering_extra_width = field_data.get(
@@ -247,6 +266,7 @@ def make_label_colors(data: dict):
     lc.crop = data.get('crop', lc.crop)
     lc.weed = data.get('weed', lc.weed)
     lc.background = data.get('background', lc.background)
+    lc.fruit = data.get('fruit', lc.fruit)  # Blender 4.2: parse optional fruit label color for segmentation masks
     return lc
 
 

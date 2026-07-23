@@ -15,7 +15,19 @@ import sys
 from pathlib import Path
 
 
-def obj_import(filepath: str):
+def obj_import(filepath: str, keep_empties: bool = False):
+    """
+    Import a USD or OBJ file, join meshes into a single named object.
+
+    Args:
+        filepath: path to the asset file (.usd, .usda, .usdc, .usdz, .obj).
+        keep_empties: if True, preserve non-mesh objects (e.g. snap-point empties
+                      from tomato_fruited.usda) and return them alongside the mesh.
+                      If False (default), non-mesh objects are deleted as before.
+    Returns:
+        (mesh_object, list_of_empties) if keep_empties is True,
+        None if keep_empties is False or no meshes were found.
+    """
     print(f"      -> Inside obj_import for: {filepath}")
     objects_before = set(bpy.context.scene.objects)
     path = Path(filepath)
@@ -32,6 +44,7 @@ def obj_import(filepath: str):
             read_mesh_uvs=True,
             read_mesh_colors=True,
             import_subdiv=True,  # Blender 4.2: usd_import uses 'import_subdiv' (not 'import_subdivision')
+            import_lights=False,  # Blender 4.2: prevent embedded DomeLight prims from polluting the scene lighting
         )
     elif ext == ".obj":
         print("      -> Calling wm.obj_import...")
@@ -42,31 +55,57 @@ def obj_import(filepath: str):
     print("      -> Import operator finished. Identifying meshes...")
     imported_objects = set(bpy.context.scene.objects) - objects_before
 
-    # first identify meshes, but do not delete parents yet
+    # Blender 4.2: strict filter — separate meshes, socket empties, and USD garbage
+    # USD imports bring in root Xforms, _materials empties, env_light, etc. that must not
+    # end up in the plant collection (Geometry Nodes would scatter them instead of the mesh).
     meshes = []
+    sockets = []
+    garbage = []
+
     for obj in imported_objects:
         if obj.type == "MESH":
             make_transparent(obj)
             meshes.append(obj)
+        elif obj.type == "EMPTY" and "socket" in obj.name.lower():
+            sockets.append(obj)
+        else:
+            # Catch env_light, _materials, and root USD xforms
+            garbage.append(obj)
+
+    # 1. Nuke the USD garbage immediately
+    for obj in garbage:
+        bpy.data.objects.remove(obj, do_unlink=True)
 
     if not meshes:
         print(f"Warning: imported file '{filepath}' did not contain mesh objects.", file=sys.stderr)
-        return
+        if not keep_empties:
+            for obj in sockets:
+                bpy.data.objects.remove(obj, do_unlink=True)
+            sockets = []
+        return (None, sockets) if keep_empties else None
 
     print("      -> Clearing parents and applying transforms...")
-    # clear parents and apply transforms
+    # clear parents and apply transforms on meshes only (empties keep their USD hierarchy)
     with bpy.context.temp_override(selected_objects=meshes, selected_editable_objects=meshes):
         bpy.ops.object.parent_clear('EXEC_DEFAULT', type="CLEAR_KEEP_TRANSFORM")
         bpy.ops.object.transform_apply('EXEC_DEFAULT', location=True, rotation=True, scale=True)
 
-    print("      -> Deleting non-mesh parents...")
-    # delete imported non-mesh parents now that transforms are baked
-    for obj in list(imported_objects):
-        if obj.type != "MESH":
-            try:
-                bpy.data.objects.remove(obj, do_unlink=True)
-            except ReferenceError:
-                pass
+    # 2. Handle the sockets safely
+    if not keep_empties:
+        print("      -> Deleting non-mesh parents...")
+        for obj in sockets:
+            bpy.data.objects.remove(obj, do_unlink=True)
+        sockets = []
+    else:
+        # Blender 4.2: keep socket empties but unlink them from the plant collection so
+        # Geometry Nodes ignores them.  Stash them in 'resources' so they survive without
+        # polluting the instancing collection.
+        print(f"      -> Preserved {len(sockets)} socket empty object(s) as snap points")
+        for emp in sockets:
+            for coll in emp.users_collection:
+                coll.objects.unlink(emp)
+            if "resources" in bpy.data.collections:
+                bpy.data.collections["resources"].objects.link(emp)
 
     print("      -> Joining meshes...")
     # keep only meshes that actually have geometry
@@ -74,7 +113,7 @@ def obj_import(filepath: str):
 
     if not meshes:
         print(f"Warning: imported file '{filepath}' did not contain usable mesh data.", file=sys.stderr)
-        return
+        return (None, sockets) if keep_empties else None
 
     active = meshes[0]
     bpy.context.view_layer.objects.active = active
@@ -95,8 +134,20 @@ def obj_import(filepath: str):
         ):
             bpy.ops.object.join('EXEC_DEFAULT')
         bpy.context.view_layer.objects.active.name = merged_name
-    
+
+    mesh_obj = bpy.context.view_layer.objects.active
+
+    if keep_empties and sockets:
+        # Blender 4.2: reparent socket empties to the joined mesh so matrix_local
+        # gives the snap-point offset in the mesh's local space.
+        for emp in sockets:
+            emp.parent = mesh_obj
+
     print(f"      -> Successfully finished importing {filepath}!")
+
+    if keep_empties:
+        return (mesh_obj, sockets)
+    return None
 
 def make_transparent(obj: bpy.types.Object):
     """

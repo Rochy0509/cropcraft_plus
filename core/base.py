@@ -33,8 +33,9 @@ def create_blender_context(env_path=None, env_rotation_deg=0.0):
     bpy.context.scene.render.engine = "CYCLES"
     bpy.context.scene.cycles.device = "GPU"
 
-    # enable scene lights for material preview
-    bpy.data.screens["Layout"].areas[3].spaces[0].shading.use_scene_lights = True
+    # enable scene lights for material preview (GUI only, crashes in --background)
+    if not bpy.app.background:  # Blender 4.2: screens/areas don't exist in --background, indexing would crash
+        bpy.data.screens["Layout"].areas[3].spaces[0].shading.use_scene_lights = True
 
 
 def remove_all():
@@ -50,12 +51,14 @@ def create_collections():
     plants = bpy.data.collections.new("plants")
     weeds = bpy.data.collections.new("weeds")
     stones = bpy.data.collections.new("stones")
+    fruits = bpy.data.collections.new("fruits")  # Blender 4.2: new subcollection for fruit instances created via post-scatter Python
     env = bpy.data.collections.new("env")
     scene = bpy.context.scene.collection
 
     scene.children.link(env)
     scene.children.link(resources)
     scene.children.link(generated)
+    scene.children.link(fruits)  # Blender 4.2: fruits at scene root so scattered instances are visible (resources is hidden)
     resources.children.link(plants)
     resources.children.link(weeds)
     resources.children.link(stones)
@@ -77,11 +80,13 @@ def create_camera(look_at: mathutils.Vector):
 
     bpy.data.collections["env"].objects.link(camera)
 
-    area = next(area for area in bpy.context.screen.areas if area.type == "VIEW_3D")
-    region = area.spaces[0].region_3d
-    region.view_location = look_at
-    region.view_distance = look_dir.length - 5.0
-    region.view_rotation = look_quaternion
+    # viewport alignment is GUI-only, crashes in --background
+    if not bpy.app.background:  # Blender 4.2: screen.areas is empty in --background, next() would raise StopIteration
+        area = next(area for area in bpy.context.screen.areas if area.type == "VIEW_3D")
+        region = area.spaces[0].region_3d
+        region.view_location = look_at
+        region.view_distance = look_dir.length - 5.0
+        region.view_rotation = look_quaternion
 
 
 _DEFAULT_ENV_PATH = "assets/environments/alps_field_1k.hdr"

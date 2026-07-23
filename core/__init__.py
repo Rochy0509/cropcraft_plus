@@ -52,6 +52,7 @@ if _reload_site:
 
 from . import base
 from . import beds
+from . import fruits  # Blender 4.2: post-scatter fruit placement module imported into core package
 from . import ground
 from . import plant_manager
 from . import output

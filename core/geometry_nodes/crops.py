@@ -127,8 +127,8 @@ def crops_node_group():
     crops.links.new(named_attribute_002.outputs[0], instance_on_points.inputs[4])
     # group_input.Geometry -> reroute.Input
     crops.links.new(group_input.outputs[0], reroute.inputs[0])
-    # instance_on_points.Instances -> group_output.Geometry
-    crops.links.new(instance_on_points.outputs[0], group_output.inputs[0])
+    # realize_instances.Geometry -> group_output.Geometry  (Blender 4.2: realize instances so evaluated mesh has actual geometry)
+    crops.links.new(realize_instances.outputs[0], group_output.inputs[0])
     # named_attribute.Attribute -> instance_on_points.Scale
     crops.links.new(named_attribute.outputs[0], instance_on_points.inputs[6])
     return crops

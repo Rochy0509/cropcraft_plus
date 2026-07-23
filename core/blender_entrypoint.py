@@ -55,7 +55,12 @@ def main(argv: list):
         beds.create_beds()
         print(">>> Finished creating beds!")
 
-    # Whatever comes next (maybe lighting, rendering, or exporting)
+        print(">>> Scattering Fruits...")
+        fruit_scatterer = core.fruits.FruitScatterer(field, beds)  # Blender 4.2: post-scatter fruit placement at snap point empties
+        fruit_scatterer.load_fruits()
+        fruit_scatterer.scatter_fruits()
+        print(">>> Finished Fruit Scattering!")
+
     except RuntimeError as e:
         print(f"Error: {e}", file=sys.stderr)
         exit(2)
@@ -102,6 +107,7 @@ def main(argv: list):
         print(">>> Applying Label Materials...")
         beds.apply_label_materials(cfg.render.label_colors)
         ground.apply_label_materials(cfg.render.label_colors)
+        fruit_scatterer.apply_label_materials(cfg.render.label_colors)  # Blender 4.2: apply emission material to fruit copies for mask rendering
         
         print(">>> Rendering Labeled Animation...")
         core.base.render_animation(cfg.render, labeled=True)

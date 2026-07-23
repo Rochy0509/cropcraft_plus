@@ -68,6 +68,14 @@ class Stones:
 
 
 @dataclass
+class Fruit:
+    name: str = None
+    fruit_type: str = None        # Blender 4.2: plant_type in PlantManager, e.g. "tomato_fruits"
+    density: float = 1.0          # Blender 4.2: fraction of snap points populated (0.0-1.0)
+    scale: float = 1.0            # Blender 4.2: additional scale multiplier applied to fruit instances
+
+
+@dataclass
 class PlantState:
     x: float = 0
     y: float = 0
@@ -110,6 +118,7 @@ class Field:
     beds: typing.List[Bed] = None
     weeds: typing.List[Weed] = field(default_factory=lambda: [])
     stones: Stones = None
+    fruits: typing.List[Fruit] = field(default_factory=lambda: [])  # Blender 4.2: list of fruit specs for post-scatter placement
 
     state: FieldState = None
 
@@ -126,6 +135,7 @@ class LabelColors:
     crop: typing.List[int] = field(default_factory=lambda: [0, 255, 0])
     weed: typing.List[int] = field(default_factory=lambda: [255, 0, 0])
     background: typing.List[int] = field(default_factory=lambda: [0, 0, 0])
+    fruit: typing.List[int] = field(default_factory=lambda: [255, 165, 0])  # Blender 4.2: unique orange label for fruit segmentation
 
 
 @dataclass
